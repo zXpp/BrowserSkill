@@ -77,6 +77,11 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
 
+      - name: Prepare extension types
+        shell: pwsh
+        run: |
+          pnpm --filter @browser-skill/extension exec wxt prepare
+
       - name: Compile extension
         shell: pwsh
         run: |
