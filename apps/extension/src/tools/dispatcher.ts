@@ -4,6 +4,8 @@ import type { Transport } from "@/transport/transport";
 import type {
   ClickParams,
   ConsoleParams,
+  DownloadConfigParams,
+  DownloadEventsParams,
   EmulateParams,
   EvaluateParams,
   FillParams,
@@ -32,6 +34,7 @@ import type {
 } from "@/transport/types";
 import { isRequestFrame } from "@/transport/types";
 import { handleConsole } from "./console";
+import { type DownloadCdpRunner, handleDownloadConfig, handleDownloadEvents } from "./download";
 import { type EmulateCdpRunner, handleEmulate } from "./emulate";
 import { handleEvaluate } from "./evaluate";
 import { handleRequestHelp } from "./human-loop";
@@ -79,6 +82,7 @@ import { handleWindowResize, type WindowResizeParams } from "./window";
 
 type DispatcherCdpRunner = CdpRunner &
   NetworkCdpRunner &
+  DownloadCdpRunner &
   EmulateCdpRunner & {
     detachSession(sessionId: string): Promise<void>;
   };
@@ -337,6 +341,20 @@ export class ToolDispatcher {
         return handleConsole(
           this.sessions,
           req.params as ConsoleParams,
+          this.cdp ? { cdp: this.cdp, tabsApi: chromeTabsApi } : undefined,
+          signal,
+        );
+      case "tool.download_config":
+        return handleDownloadConfig(
+          this.sessions,
+          req.params as DownloadConfigParams,
+          this.cdp ? { cdp: this.cdp, tabsApi: chromeTabsApi } : undefined,
+          signal,
+        );
+      case "tool.download_events":
+        return handleDownloadEvents(
+          this.sessions,
+          req.params as DownloadEventsParams,
           this.cdp ? { cdp: this.cdp, tabsApi: chromeTabsApi } : undefined,
           signal,
         );

@@ -2,6 +2,7 @@
 
 pub mod console;
 pub mod dialog;
+pub mod download;
 pub mod emulate;
 pub mod human_loop;
 pub mod interaction;
@@ -17,6 +18,7 @@ pub mod window;
 
 pub use console::*;
 pub use dialog::*;
+pub use download::*;
 pub use emulate::*;
 pub use human_loop::*;
 pub use interaction::*;

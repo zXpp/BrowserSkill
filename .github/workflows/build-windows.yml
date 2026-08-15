@@ -1,0 +1,133 @@
+name: Build BrowserSkill Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "crates/**"
+      - "apps/extension/**"
+      - "packages/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/build-windows.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Windows x64 + Chrome Extension
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - name: Build bsk.exe
+        shell: pwsh
+        run: |
+          cargo build --release -p bsk-cli --target x86_64-pc-windows-msvc
+
+          $bsk = Get-ChildItem `
+            -Path "target\x86_64-pc-windows-msvc\release" `
+            -Filter "bsk.exe" `
+            -File `
+            -Recurse |
+            Select-Object -First 1
+
+          if (-not $bsk) {
+            throw "bsk.exe was not produced"
+          }
+
+          New-Item -ItemType Directory -Force -Path "artifacts\bsk-windows-x64" | Out-Null
+          Copy-Item $bsk.FullName "artifacts\bsk-windows-x64\bsk.exe"
+
+          Write-Host "Built:"
+          Get-Item "artifacts\bsk-windows-x64\bsk.exe" | Format-List FullName,Length
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install JS dependencies
+        shell: pwsh
+        run: |
+          pnpm install --frozen-lockfile
+
+      - name: Compile extension
+        shell: pwsh
+        run: |
+          pnpm --filter @browser-skill/extension compile
+
+      - name: Build extension
+        shell: pwsh
+        run: |
+          pnpm --filter @browser-skill/extension build
+
+      - name: Package Chrome extension
+        shell: pwsh
+        run: |
+          $outputRoot = "apps\extension\.output"
+
+          if (-not (Test-Path $outputRoot)) {
+            throw "Extension output directory not found: $outputRoot"
+          }
+
+          $chromeDir = Get-ChildItem `
+            -Path $outputRoot `
+            -Directory |
+            Where-Object { $_.Name -match "^chrome" } |
+            Select-Object -First 1
+
+          if (-not $chromeDir) {
+            Write-Host "Available extension output directories:"
+            Get-ChildItem $outputRoot -Directory | ForEach-Object { Write-Host $_.FullName }
+            throw "Chrome extension build directory was not found"
+          }
+
+          New-Item -ItemType Directory -Force -Path "artifacts" | Out-Null
+          Compress-Archive `
+            -Path "$($chromeDir.FullName)\*" `
+            -DestinationPath "artifacts\browserskill-chrome-extension.zip" `
+            -Force
+
+          Write-Host "Packaged extension from: $($chromeDir.FullName)"
+
+      - name: Upload bsk.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: bsk-windows-x64
+          path: artifacts/bsk-windows-x64/bsk.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Chrome extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: browserskill-chrome-extension
+          path: artifacts/browserskill-chrome-extension.zip
+          if-no-files-found: error
+          retention-days: 30

@@ -793,3 +793,31 @@ export interface RecordAwaitParams {
 export interface RecordAwaitResult {
   trace: Trace;
 }
+
+
+// Browser download capture (Browser.downloadWillBegin / Browser.downloadProgress).
+export interface DownloadConfigParams {
+  session_id: string;
+  tab_id?: number;
+  download_path: string;
+}
+export interface DownloadConfigResult { tab_id: number; next_since: number; }
+export interface DownloadEventsParams { session_id: string; tab_id?: number; since?: number; limit?: number; }
+export type DownloadEntryKind = "will_begin" | "progress";
+export interface DownloadEntry {
+  sequence: number;
+  kind: DownloadEntryKind;
+  guid: string;
+  url?: string;
+  suggested_filename?: string;
+  state?: string;
+  received_bytes?: number;
+  total_bytes?: number;
+  file_path?: string;
+}
+export interface DownloadEventsResult {
+  tab_id: number;
+  entries: DownloadEntry[];
+  next_since: number;
+  truncated: boolean;
+}

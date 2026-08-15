@@ -9,6 +9,7 @@ pub mod console;
 pub mod daemon;
 pub mod dialogs;
 pub mod doctor;
+pub mod download;
 pub mod emulate;
 pub mod ensure_daemon;
 pub mod error;
@@ -37,6 +38,7 @@ use clap::{Args, Parser, Subcommand};
 
 use crate::cli::console::ConsoleArgs;
 use crate::cli::daemon::DaemonCmd;
+use crate::cli::download::DownloadCmd;
 use crate::cli::emulate::EmulateArgs;
 use crate::cli::evaluate::EvaluateArgs;
 use crate::cli::get_html::GetHtmlArgs;
@@ -142,6 +144,10 @@ pub enum Command {
 
     /// Read buffered network responses / failures.
     Network(NetworkArgs),
+
+    /// Configure and inspect Chromium download events.
+    #[command(subcommand)]
+    Download(DownloadCmd),
 
     /// Dump raw HTML for a tab or a snapshot ref.
     #[command(name = "get-html")]
