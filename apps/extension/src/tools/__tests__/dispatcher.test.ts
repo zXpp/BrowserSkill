@@ -149,6 +149,13 @@ describe("ToolDispatcher", () => {
       clearDeviceMetricsOverride: vi.fn(async () => {}),
       setUserAgentOverride: vi.fn(async () => {}),
       setTouchEmulationEnabled: vi.fn(async () => {}),
+      configureDownloads: vi.fn(async () => 0),
+      downloadEntriesSince: vi.fn(() => ({
+        tab_id: 7,
+        entries: [],
+        next_since: 0,
+        truncated: false,
+      })),
     };
     const dispatcher = new ToolDispatcher({ transport, sessions, cdp: cdp as TestDispatcherCdp });
     dispatcher.start();
@@ -192,6 +199,13 @@ describe("ToolDispatcher", () => {
       clearDeviceMetricsOverride: vi.fn(async () => {}),
       setUserAgentOverride: vi.fn(async () => {}),
       setTouchEmulationEnabled: vi.fn(async () => {}),
+      configureDownloads: vi.fn(async () => 0),
+      downloadEntriesSince: vi.fn(() => ({
+        tab_id: 7,
+        entries: [],
+        next_since: 0,
+        truncated: false,
+      })),
     };
     const dispatcher = new ToolDispatcher({ transport, sessions, cdp: cdp as TestDispatcherCdp });
     dispatcher.start();
@@ -364,6 +378,13 @@ describe("ToolDispatcher", () => {
       clearDeviceMetricsOverride: vi.fn(async () => {}),
       setUserAgentOverride: vi.fn(async () => {}),
       setTouchEmulationEnabled: vi.fn(async () => {}),
+      configureDownloads: vi.fn(async () => 0),
+      downloadEntriesSince: vi.fn(() => ({
+        tab_id: 7,
+        entries: [],
+        next_since: 0,
+        truncated: false,
+      })),
     };
     const dispatcher = new ToolDispatcher({ transport, sessions, cdp: cdp as TestDispatcherCdp });
 
@@ -442,6 +463,13 @@ describe("ToolDispatcher", () => {
       clearDeviceMetricsOverride: vi.fn(async () => {}),
       setUserAgentOverride: vi.fn(async () => {}),
       setTouchEmulationEnabled: vi.fn(async () => {}),
+      configureDownloads: vi.fn(async () => 0),
+      downloadEntriesSince: vi.fn(() => ({
+        tab_id: 7,
+        entries: [],
+        next_since: 0,
+        truncated: false,
+      })),
     };
     const dispatcher = new ToolDispatcher({ transport, sessions, cdp: cdp as TestDispatcherCdp });
     const helpers = dispatcher as unknown as {
@@ -541,6 +569,13 @@ describe("ToolDispatcher", () => {
       clearDeviceMetricsOverride: vi.fn(async () => {}),
       setUserAgentOverride: vi.fn(async () => {}),
       setTouchEmulationEnabled: vi.fn(async () => {}),
+      configureDownloads: vi.fn(async () => 0),
+      downloadEntriesSince: vi.fn(() => ({
+        tab_id: 9,
+        entries: [],
+        next_since: 0,
+        truncated: false,
+      })),
     };
     const dispatcher = new ToolDispatcher({ transport, sessions, cdp: cdp as TestDispatcherCdp });
     const helpers = dispatcher as unknown as {
