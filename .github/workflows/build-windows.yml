@@ -95,10 +95,16 @@ jobs:
       - name: Package Chrome extension
         shell: pwsh
         run: |
-          $outputRoot = "apps\extension\.output"
+          $outputRoot = $null
+          foreach ($candidate in @("apps\extension\dist", "apps\extension\.output")) {
+            if (Test-Path $candidate) {
+              $outputRoot = $candidate
+              break
+            }
+          }
 
           if (-not (Test-Path $outputRoot)) {
-            throw "Extension output directory not found: $outputRoot"
+            throw "Extension output directory not found (checked apps\extension\dist and apps\extension\.output)"
           }
 
           $chromeDir = Get-ChildItem `
