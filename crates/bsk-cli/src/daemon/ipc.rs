@@ -251,7 +251,9 @@ pub fn full_handler(status: DaemonStatus, state: Arc<DaemonState>) -> RpcHandler
                 | Method::ToolRequestHelp
                 | Method::ToolRecordStart
                 | Method::ToolRecordStop
-                | Method::ToolRecordAwait => {
+                | Method::ToolRecordAwait
+                | Method::ToolDownloadConfig
+                | Method::ToolDownloadEvents => {
                     handle_tool_dispatch(&state, rpc_id, method, params).await
                 }
                 Method::ToolWaitMs => handle_wait_ms(&state.abort_registry, rpc_id, params).await,
