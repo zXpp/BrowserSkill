@@ -42,7 +42,7 @@ jobs:
       - name: Build bsk.exe
         shell: pwsh
         run: |
-          cargo build --release -p bsk-cli --target x86_64-pc-windows-msvc
+          cargo build --release -p bsk --target x86_64-pc-windows-msvc
 
           $bsk = Get-ChildItem `
             -Path "target\x86_64-pc-windows-msvc\release" `
