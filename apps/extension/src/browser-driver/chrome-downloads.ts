@@ -104,7 +104,7 @@ export class ChromeDownloads {
 
   private bindHandlers(): void {
     const onCreated = (item: chrome.downloads.DownloadItem): void => {
-      const tabId = item.tabId;
+      const tabId = (item as { tabId?: number }).tabId;
       if (typeof tabId !== "number") return;
       this.downloadTabMap.set(item.id, tabId);
       this.appendEntry(tabId, {
@@ -121,7 +121,7 @@ export class ChromeDownloads {
         kind: "progress",
         guid: String(delta.id),
         state: delta.state?.current,
-        received_bytes: delta.received?.current,
+        received_bytes: (delta as { received?: { current?: number } }).received?.current,
         total_bytes: delta.totalBytes?.current,
         file_path: delta.filename?.current,
       });
