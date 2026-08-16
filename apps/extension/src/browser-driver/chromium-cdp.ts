@@ -22,7 +22,6 @@
 
 import type {
   ConsoleEntry,
-  DownloadEntry,
   DownloadEventsResult,
   ConsoleEntryKind,
   ConsoleResult,
@@ -33,6 +32,8 @@ import type {
   NetworkEntryKind,
   NetworkResult,
 } from "@/transport/types";
+
+import { ChromeDownloads } from "./chrome-downloads";
 
 /**
  * Minimal slice of `chrome.debugger` the rest of the extension
@@ -110,7 +111,6 @@ const MAX_CONSOLE_BUFFER = 200;
 const MAX_CONSOLE_FIELD_LENGTH = 4096;
 const MAX_CONSOLE_STACK_FRAMES = 20;
 const MAX_NETWORK_BUFFER = 200;
-const MAX_DOWNLOAD_BUFFER = 200;
 const MAX_NETWORK_FIELD_LENGTH = 4096;
 const MAX_NETWORK_REQUEST_META = 1024;
 
@@ -152,13 +152,11 @@ export class ChromiumCdp {
   private readonly networkSequences = new Map<number, number>();
   private readonly networkDomainsEnabledTabs = new Set<number>();
   private readonly networkRequestMeta = new Map<number, Map<string, NetworkRequestMeta>>();
-  private readonly downloadBuffers = new Map<number, DownloadEntry[]>();
-  private readonly downloadSequences = new Map<number, number>();
+  private chromeDownloads: ChromeDownloads | null = null;
   private detachSubscription: { dispose(): void } | null = null;
   private dialogSubscription: { dispose(): void } | null = null;
   private consoleSubscription: { dispose(): void } | null = null;
   private networkSubscription: { dispose(): void } | null = null;
-  private downloadSubscription: { dispose(): void } | null = null;
 
   constructor(api: CdpDebuggerApi = chromeDebuggerApi) {
     this.api = api;
@@ -166,7 +164,6 @@ export class ChromiumCdp {
     this.bindDialogHandler();
     this.bindConsoleHandler();
     this.bindNetworkHandler();
-    this.bindDownloadHandler();
   }
 
   /** Attach to `tabId` if we haven't already in this driver. */
@@ -333,26 +330,12 @@ export class ChromiumCdp {
 
   /** Configure Chrome downloads for this tab and return the current event cursor. */
   async configureDownloads(tabId: number, downloadPath: string): Promise<number> {
-    await this.ensureAttached(tabId);
-    await this.send(tabId, "Browser.setDownloadBehavior", {
-      behavior: "allow",
-      downloadPath,
-      eventsEnabled: true,
-    });
-    return this.downloadSequences.get(tabId) ?? 0;
+    return this.getChromeDownloads().configureDownloads(tabId, downloadPath);
   }
 
   /** Buffered download events with sequence greater than `since`. */
   downloadEntriesSince(tabId: number, since: number | undefined, limit: number): DownloadEventsResult {
-    const cursor = since ?? 0;
-    const all = (this.downloadBuffers.get(tabId) ?? []).filter((e) => e.sequence > cursor);
-    const entries = all.slice(0, limit);
-    return {
-      tab_id: tabId,
-      entries,
-      next_since: entries.length ? entries[entries.length - 1].sequence : Math.max(cursor, this.downloadSequences.get(tabId) ?? 0),
-      truncated: all.length > entries.length,
-    };
+    return this.getChromeDownloads().downloadEntriesSince(tabId, since, limit);
   }
 
   /** Detach if attached; never throws. */
@@ -410,8 +393,7 @@ export class ChromiumCdp {
     this.networkSequences.clear();
     this.networkDomainsEnabledTabs.clear();
     this.networkRequestMeta.clear();
-    this.downloadBuffers.clear();
-    this.downloadSequences.clear();
+    this.chromeDownloads?.clearAll();
     await Promise.all(
       tabs.map(async (tabId) => {
         try {
@@ -638,46 +620,8 @@ export class ChromiumCdp {
     this.networkRequestMeta.delete(tabId);
   }
 
-  private bindDownloadHandler(): void {
-    if (this.downloadSubscription) return;
-    const listener = (source: chrome.debugger.Debuggee, method: string, params: unknown) => {
-      const tabId = source.tabId;
-      if (typeof tabId !== "number") return;
-      if (method !== "Browser.downloadWillBegin" && method !== "Browser.downloadProgress") return;
-      const raw = (params ?? {}) as Record<string, unknown>;
-      const guid = typeof raw.guid === "string" ? raw.guid : undefined;
-      if (!guid) return;
-      const sequence = (this.downloadSequences.get(tabId) ?? 0) + 1;
-      this.downloadSequences.set(tabId, sequence);
-      const entry: DownloadEntry = method === "Browser.downloadWillBegin"
-        ? {
-            sequence,
-            kind: "will_begin",
-            guid,
-            url: typeof raw.url === "string" ? raw.url : undefined,
-            suggested_filename: typeof raw.suggestedFilename === "string" ? raw.suggestedFilename : undefined,
-          }
-        : {
-            sequence,
-            kind: "progress",
-            guid,
-            state: typeof raw.state === "string" ? raw.state : undefined,
-            received_bytes: typeof raw.receivedBytes === "number" ? raw.receivedBytes : undefined,
-            total_bytes: typeof raw.totalBytes === "number" ? raw.totalBytes : undefined,
-            file_path: typeof raw.filePath === "string" ? raw.filePath : undefined,
-          };
-      const buf = this.downloadBuffers.get(tabId) ?? [];
-      buf.push(entry);
-      while (buf.length > MAX_DOWNLOAD_BUFFER) buf.shift();
-      this.downloadBuffers.set(tabId, buf);
-    };
-    this.api.onEvent.addListener(listener);
-    this.downloadSubscription = { dispose: () => this.api.onEvent.removeListener(listener) };
-  }
-
   private clearDownloadState(tabId: number): void {
-    this.downloadBuffers.delete(tabId);
-    this.downloadSequences.delete(tabId);
+    this.chromeDownloads?.clearDownloadState(tabId);
   }
 
   private bindAutoDetach(): void {
@@ -709,8 +653,15 @@ export class ChromiumCdp {
     this.consoleSubscription = null;
     this.networkSubscription?.dispose();
     this.networkSubscription = null;
-    this.downloadSubscription?.dispose();
-    this.downloadSubscription = null;
+    this.chromeDownloads?.dispose();
+    this.chromeDownloads = null;
+  }
+
+  private getChromeDownloads(): ChromeDownloads {
+    if (!this.chromeDownloads) {
+      this.chromeDownloads = new ChromeDownloads();
+    }
+    return this.chromeDownloads;
   }
 
   /** Detach tabs only when no other live session has claimed them. */
